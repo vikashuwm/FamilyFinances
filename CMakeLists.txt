@@ -41,6 +41,9 @@ target_link_libraries(FamilyFinances PRIVATE
 # Copy the QSS file to the build directory
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/FamilyFinances.qss ${CMAKE_CURRENT_BINARY_DIR}/FamilyFinances.qss COPYONLY)
 
+# Ensure the necessary directory structure exists
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/resources)
+
 # Create a custom target to copy resources
 add_custom_target(copy_resources ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -49,5 +52,13 @@ add_custom_target(copy_resources ALL
     COMMENT "Copying resources into binary directory"
 )
 
-# Add dependency to ensure resources are copied before building the executable
+# Add the user_accounts.cfg file to the copy resources step
+add_custom_command(TARGET copy_resources POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    ${CMAKE_SOURCE_DIR}/resources/user_accounts.cfg
+    ${CMAKE_CURRENT_BINARY_DIR}/resources/user_accounts.cfg
+    COMMENT "Copying user_accounts.cfg into binary directory"
+)
+
+# Ensure FamilyFinances depends on the copy_resources target
 add_dependencies(FamilyFinances copy_resources)

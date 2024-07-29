@@ -6,63 +6,51 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QLabel>
-#include <QMessageBox>
-#include <QVBoxLayout>
-#include <QComboBox>
-#include <QIntValidator>
+#include <QDialog>
+#include <QVector>
+#include <QSharedPointer>
 
 class Bank;
 class LoginPage;
+class Transaction;
+class Account;
 
-class FamilyFinances : public QMainWindow {
+class FamilyFinances : public QMainWindow
+{
     Q_OBJECT
 
 public:
-    FamilyFinances(QWidget *parent = nullptr);
+    explicit FamilyFinances(QWidget *parent = nullptr);
     ~FamilyFinances();
 
 private slots:
     void onLoginSuccessful(const QString &username, bool isAdmin);
-    void createAccount();
     void performTransaction();
-    void updateAccountList();
-    void showTransferInfo() {
-        QMessageBox::information(this, "Bank Transfer Information",
-            "A bank transfer is a method of electronically moving money from one bank account to another. "
-            "It can be between accounts at the same bank or different banks. Transfers are typically used "
-            "for sending money to friends or family, paying bills, or moving funds between your own accounts.");
-    }
+    void showCreateAccountForm();
 
 private:
     void setupUI();
+    QDialog* setupAccountCreationDialog();
+    QString generateUniqueAccountId();
+    void updateAccountList();
     void setUserAccess(const QString &username, bool isAdmin);
-    void setupAccountCreation(QVBoxLayout *mainLayout);
+    bool saveAccountToFile(const QString& accountId, const QString& password, 
+                           const QString& owner, const QString& email);
 
     Bank *bank;
-    bool isAdminUser;
-    int nextAccountId;
-    QString currentUser;
-
     LoginPage *loginPage;
     QWidget *bankWidget;
 
-    // Account creation fields
-    QLineEdit *firstNameInput;
-    QLineEdit *lastNameInput;
-    QLineEdit *emailInput;
-    QLineEdit *ageInput;
-    QComboBox *sexInput;
-
-    QLineEdit *ownerInput;
-    QLineEdit *initialBalanceInput;
+    QTableWidget *accountTable;
     QLineEdit *sourceInput;
     QLineEdit *destInput;
     QLineEdit *amountInput;
-    QPushButton *createButton;
     QPushButton *transferButton;
-    QTableWidget *accountTable;
+    QPushButton *createAccountButton;
     QLabel *statusLabel;
-    QWidget *accountCreationWidget; // New widget for account creation section
+
+    QString currentUser;
+    bool isAdminUser;
 };
 
 #endif // FAMILYFINANCES_H
