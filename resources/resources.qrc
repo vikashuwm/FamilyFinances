@@ -1,0 +1,10 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file>../FamilyFinances.qss</file>
+        <file>eye.png</file>
+        <file>ff.png</file>
+        <file>admin.cfg</file>
+        <file>user.cfg</file>
+    </qresource>
+</RCC>

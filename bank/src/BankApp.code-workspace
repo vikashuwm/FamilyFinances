@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"string": "cpp",
+			"stdexcept": "cpp",
+			"new": "cpp"
+		}
+	}
+}
