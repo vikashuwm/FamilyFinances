@@ -39,15 +39,25 @@ void AccountManager::setupUI() {
     accountTable->setStyleSheet("QTableWidget { border: 1px solid #CCCCCC; border-radius: 10px; }"
                                 "QHeaderView::section { background-color: #333333; color: white; padding: 5px; }");
     connect(accountTable, &QTableWidget::cellClicked, this, &AccountManager::showTransactionHistory);
+    
+    int rowHeight = accountTable->verticalHeader()->defaultSectionSize();
+    int headerHeight = accountTable->horizontalHeader()->height();
+    int tableHeight = (rowHeight * 10) + headerHeight;
+    accountTable->setMinimumHeight(tableHeight);
+    
     mainLayout->addWidget(accountTable);
 
     transactionHistoryTextEdit = new QTextEdit(this);
     transactionHistoryTextEdit->setReadOnly(true);
     transactionHistoryTextEdit->setStyleSheet("QTextEdit { border: 1px solid #CCCCCC; border-radius: 10px; padding: 10px; }");
-    transactionHistoryTextEdit->setFixedHeight(150);
+    transactionHistoryTextEdit->setMinimumHeight(200);
     mainLayout->addWidget(transactionHistoryTextEdit);
 
     setLayout(mainLayout);
+
+    int minWidth = 600;
+    int minHeight = tableHeight + createAccountButton->height() + transactionHistoryTextEdit->minimumHeight() + 60;
+    setMinimumSize(minWidth, minHeight);
 }
 
 void AccountManager::loadUserAccounts() {
@@ -103,13 +113,27 @@ void AccountManager::setUserAccess(const QString &username, bool isAdmin) {
     currentUser = username;
     isAdminUser = isAdmin;
     createAccountButton->setVisible(isAdmin);
-    loadUserAccounts();
-    updateAccountList();
+    accountTable->setVisible(isAdmin);
+    
+    qDebug() << "Setting user access for:" << username << "isAdmin:" << isAdmin;
+
+    if (isAdmin) {
+        loadUserAccounts();
+        updateAccountList();
+    } else {
+        displayUserInfo();
+    }
+
+    // Ensure the layout adjusts to show/hide widgets
+    layout()->activate();
 }
 
 void AccountManager::showCreateAccountForm() {
     QDialog* dialog = setupAccountCreationDialog();
-    dialog->exec();
+    if (dialog->exec() == QDialog::Accepted) {
+        loadAccountsFromFile();
+        updateAccountList();
+    }
     delete dialog;
 }
 
@@ -171,11 +195,20 @@ QDialog* AccountManager::setupAccountCreationDialog() {
         Money minBalance = Money::fromDollars(0);
         Money initial = Money::fromDollars(initialBalance);
 
-        auto account = bank->open(owner, accountId.toStdString(), minBalance, initial);
+        std::shared_ptr<Account> accountPtr = bank->open(owner, accountId.toStdString(), minBalance, initial);
+        if (accountPtr) {
+            allAccounts.append(accountPtr.get());  // Add the raw pointer to allAccounts
+        } else {
+            QMessageBox::warning(dialog, "Account Creation Error", "Failed to create the account.");
+            return;
+        }
+
         QString password = QString::fromStdString(bank->generatePassword(owner, accountId.toStdString()));
 
+        // Save the new account information to the account file
         saveAllAccountsToFile();
 
+        // Save the user credentials to the user config file
         QFile userFile(USER_CONFIG_PATH);
         if (userFile.open(QIODevice::ReadWrite)) {
             QByteArray userData = userFile.readAll();
@@ -192,7 +225,9 @@ QDialog* AccountManager::setupAccountCreationDialog() {
         }
 
         dialog->accept();
-        loadUserAccounts();
+        
+        // Refresh the account list
+        loadAccountsFromFile();
         updateAccountList();
     });
 
@@ -287,30 +322,109 @@ void AccountManager::loadAccountsFromFile() {
 
 void AccountManager::saveAllAccountsToFile() {
     QFile file(ACCOUNT_FILE_PATH);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        qDebug() << "Failed to open file for writing:" << file.errorString();
+    if (!file.open(QIODevice::ReadWrite | QIODevice::Text)) {
+        qDebug() << "Failed to open file for reading and writing:" << file.errorString();
         return;
     }
 
+    // Read existing accounts
+    QTextStream in(&file);
+    QMap<QString, QString> existingAccounts;
+    QString currentAccountId;
+    QString accountData;
+    while (!in.atEnd()) {
+        QString line = in.readLine();
+        if (line.startsWith("Account ID: ")) {
+            if (!currentAccountId.isEmpty()) {
+                existingAccounts[currentAccountId] = accountData;
+                accountData.clear();
+            }
+            currentAccountId = line.mid(12).trimmed();
+        }
+        accountData += line + "\n";
+    }
+    if (!currentAccountId.isEmpty()) {
+        existingAccounts[currentAccountId] = accountData;
+    }
+
+    // Rewind file and clear it
+    file.seek(0);
+    file.resize(0);
+
     QTextStream out(&file);
 
+    // Write all accounts, updating or adding new ones
     for (const auto& account : bank->getAccounts()) {
-        out << "Account ID: " << QString::fromStdString(account->getID()) << "\n";
-        out << "Owner: " << QString::fromStdString(account->getOwner()) << "\n";
-        out << "Balance: " << QString::fromStdString(account->getCurrent().toString()) << "\n";
-        
-        const auto transactions = account->getLastTransactions(5);
-        int transactionCount = transactions.size();
-        
-        out << "Last " << transactionCount << " Transactions:\n";
-        for (const auto& transaction : transactions) {
-            out << "  - Date: " << QString::fromStdString(transaction.getDate()) << "\n";
-            out << "    Amount: " << QString::fromStdString(transaction.getAmount().toString()) << "\n";
-            out << "    Type: " << (transaction.getType() == Transaction::Type::DEPOSIT ? "Deposit" : 
-                                    (transaction.getType() == Transaction::Type::WITHDRAWAL ? "Withdrawal" : "Transfer")) << "\n";
+        QString accountId = QString::fromStdString(account->getID());
+        if (existingAccounts.contains(accountId)) {
+            out << existingAccounts[accountId];
+        } else {
+            out << "Account ID: " << accountId << "\n";
+            out << "Owner: " << QString::fromStdString(account->getOwner()) << "\n";
+            out << "Balance: " << QString::fromStdString(account->getCurrent().toString()) << "\n";
+            
+            const auto transactions = account->getLastTransactions(5);
+            int transactionCount = transactions.size();
+            
+            out << "Last " << transactionCount << " Transactions:\n";
+            for (const auto& transaction : transactions) {
+                out << "  - Date: " << QString::fromStdString(transaction.getDate()) << "\n";
+                out << "    Amount: " << QString::fromStdString(transaction.getAmount().toString()) << "\n";
+                out << "    Type: " << (transaction.getType() == Transaction::Type::DEPOSIT ? "Deposit" : 
+                                        (transaction.getType() == Transaction::Type::WITHDRAWAL ? "Withdrawal" : "Transfer")) << "\n";
+            }
+            out << "\n";
         }
-        out << "\n";
+        existingAccounts.remove(accountId);
+    }
+
+    // Write any remaining existing accounts that weren't in bank->getAccounts()
+    for (const auto& accountData : existingAccounts) {
+        out << accountData;
     }
 
     file.close();
+}
+
+void AccountManager::displayUserInfo() {
+    QFile file(ACCOUNT_FILE_PATH);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qDebug() << "Failed to open file:" << file.errorString();
+        transactionHistoryTextEdit->setPlainText("Error: Failed to open account file.");
+        return;
+    }
+
+    QTextStream in(&file);
+    QString accountInfo;
+    bool foundAccount = false;
+    QString currentLine;
+
+    while (!in.atEnd()) {
+        currentLine = in.readLine();
+        if (currentLine.startsWith("Account ID: ") && currentLine.mid(12).trimmed() == currentUser) {
+            // If currentUser matches Account ID
+            foundAccount = true;
+        } else if (currentLine.startsWith("Owner: ") && currentLine.mid(7).trimmed().toLower() == currentUser.toLower()) {
+            // If currentUser matches Owner name
+            foundAccount = true;
+            in.seek(in.pos() - currentLine.length() - 1);  // Go back one line to include Account ID
+        }
+
+        if (foundAccount) {
+            accountInfo = "Your Account Information:\n\n";
+            // Read account information (Account ID, Owner, Balance, and Transactions)
+            for (int i = 0; i < 5 && !in.atEnd(); ++i) {
+                accountInfo += in.readLine() + "\n";
+            }
+            break;
+        }
+    }
+
+    file.close();
+
+    if (foundAccount) {
+        transactionHistoryTextEdit->setPlainText(accountInfo);
+    } else {
+        transactionHistoryTextEdit->setPlainText("No account information found for " + currentUser);
+    }
 }

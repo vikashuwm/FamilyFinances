@@ -42,6 +42,7 @@ private:
     QString generateUniqueAccountId();
     QDialog* setupAccountCreationDialog();
     bool isUserAuthorizedForAccount(const QString& accountId);
+    void displayUserInfo();
 };
 
 #endif // ACCOUNTMANAGER_H
