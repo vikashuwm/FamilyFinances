@@ -2,26 +2,27 @@
 #define FAMILYFINANCES_H
 
 #include <QMainWindow>
-#include <QLineEdit>
-#include <QPushButton>
 #include <QTableWidget>
+#include <QLineEdit>
 #include <QLabel>
+#include <QPushButton>
 #include <QDialog>
-#include <QVector>
-#include <QSharedPointer>
+#include <QCloseEvent>  // Add this include
+#include <QGroupBox>    // Add this include
+#include <QUuid>
 
 class Bank;
 class LoginPage;
-class Transaction;
-class Account;
 
-class FamilyFinances : public QMainWindow
-{
+class FamilyFinances : public QMainWindow {
     Q_OBJECT
 
 public:
-    explicit FamilyFinances(QWidget *parent = nullptr);
+    FamilyFinances(QWidget *parent = nullptr);
     ~FamilyFinances();
+
+protected:
+    void closeEvent(QCloseEvent *event) override;  // Declare the closeEvent method
 
 private slots:
     void onLoginSuccessful(const QString &username, bool isAdmin);
@@ -30,27 +31,24 @@ private slots:
 
 private:
     void setupUI();
-    QDialog* setupAccountCreationDialog();
-    QString generateUniqueAccountId();
     void updateAccountList();
+    QDialog* setupAccountCreationDialog();
+    void saveAllAccountsToFile();  // Declare the saveAllAccountsToFile method
     void setUserAccess(const QString &username, bool isAdmin);
-    bool saveAccountToFile(const QString& accountId, const QString& password, 
-                           const QString& owner, const QString& email);
+    QString generateUniqueAccountId();
 
     Bank *bank;
     LoginPage *loginPage;
     QWidget *bankWidget;
+    QString currentUser;
+    bool isAdminUser;
 
     QTableWidget *accountTable;
+    QPushButton *createAccountButton;
     QLineEdit *sourceInput;
     QLineEdit *destInput;
     QLineEdit *amountInput;
-    QPushButton *transferButton;
-    QPushButton *createAccountButton;
     QLabel *statusLabel;
-
-    QString currentUser;
-    bool isAdminUser;
 };
 
 #endif // FAMILYFINANCES_H

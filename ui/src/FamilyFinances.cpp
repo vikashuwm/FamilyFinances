@@ -13,9 +13,17 @@
 #include <QTextStream>
 #include <QDir>
 #include <QDebug>
-#include <QDateTime>  // Include QDateTime header
-#include <iostream>
+#include <QGroupBox>    // Add this include
+#include <QCloseEvent>  // Add this include
+#include <QDateTime>
 #include <QStandardPaths>
+#include "Account.h"
+#include "Transaction.h"
+#include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
+#include <QTextStream>
+#include <QDebug>
 
 FamilyFinances::FamilyFinances(QWidget *parent)
     : QMainWindow(parent), bank(new Bank()), isAdminUser(false) {
@@ -115,56 +123,88 @@ void FamilyFinances::showCreateAccountForm() {
 
 void FamilyFinances::setupUI() {
     QVBoxLayout *mainLayout = new QVBoxLayout(bankWidget);
-    mainLayout->setSpacing(15);
+    mainLayout->setSpacing(20);
     mainLayout->setContentsMargins(20, 20, 20, 20);
 
+    // Create Account button
     createAccountButton = new QPushButton("Create Account", bankWidget);
     createAccountButton->setObjectName("createAccountButton");
+    createAccountButton->setStyleSheet("background-color: #007BFF; color: white; border-radius: 15px; padding: 10px 20px;");
     connect(createAccountButton, &QPushButton::clicked, this, &FamilyFinances::showCreateAccountForm);
     mainLayout->addWidget(createAccountButton, 0, Qt::AlignRight);
 
+    // Account table
     accountTable = new QTableWidget(bankWidget);
     accountTable->setObjectName("accountTable");
     accountTable->setColumnCount(3);
     accountTable->setHorizontalHeaderLabels({"Account ID", "Owner", "Balance"});
-    accountTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    accountTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    accountTable->setSelectionBehavior(QAbstractItemView::SelectRows);
-    accountTable->setSelectionMode(QAbstractItemView::SingleSelection);
-    accountTable->setMinimumHeight(200);
+    accountTable->horizontalHeader()->setStretchLastSection(true);
+    accountTable->setStyleSheet("QTableWidget { border: 1px solid #CCCCCC; border-radius: 10px; }"
+                                "QHeaderView::section { background-color: #333333; color: white; padding: 5px; }");
     mainLayout->addWidget(accountTable);
 
-    QHBoxLayout *transferLayout = new QHBoxLayout;
-    transferLayout->setSpacing(10);
+    // Transaction group
+    QGroupBox* transactionGroup = new QGroupBox(bankWidget);
+    transactionGroup->setStyleSheet("QGroupBox { border: 1px solid #CCCCCC; border-radius: 10px; padding: 10px; background-color: rgba(255, 255, 255, 0.1); }");
+    QVBoxLayout* transactionLayout = new QVBoxLayout(transactionGroup);
 
-    sourceInput = new QLineEdit(bankWidget);
-    sourceInput->setPlaceholderText("Source Account");
+    // Transaction inputs
+    QHBoxLayout* inputsLayout = new QHBoxLayout();
+    QStringList inputLabels = {"Source Account", "Destination Account", "Amount"};
+    QList<QLineEdit*> inputs = {sourceInput = new QLineEdit(), destInput = new QLineEdit(), amountInput = new QLineEdit()};
 
-    QLabel *arrowLabel = new QLabel("→", bankWidget);
-    arrowLabel->setObjectName("arrowLabel");
-    arrowLabel->setAlignment(Qt::AlignCenter);
+    for (int i = 0; i < inputLabels.size(); ++i) {
+        QVBoxLayout* inputGroup = new QVBoxLayout();
+        QLabel* label = new QLabel(inputLabels[i]);
+        label->setStyleSheet("color: white;");
+        inputGroup->addWidget(label);
+        inputGroup->addWidget(inputs[i]);
+        inputs[i]->setStyleSheet("background-color: rgba(255, 255, 255, 0.2); border: none; border-radius: 5px; padding: 5px; color: white;");
+        inputsLayout->addLayout(inputGroup);
 
-    destInput = new QLineEdit(bankWidget);
-    destInput->setPlaceholderText("Destination Account");
+        if (i < inputLabels.size() - 1) {
+            QLabel* arrow = new QLabel("→");
+            arrow->setStyleSheet("color: white; font-size: 20px;");
+            inputsLayout->addWidget(arrow);
+        }
+    }
+    transactionLayout->addLayout(inputsLayout);
 
-    amountInput = new QLineEdit(bankWidget);
-    amountInput->setPlaceholderText("Amount");
-
-    transferButton = new QPushButton("TRANSFER", bankWidget);
-    transferButton->setObjectName("transferButton");
-    transferButton->setFixedHeight(40);
+    // Transfer button
+    QPushButton* transferButton = new QPushButton("TRANSFER", transactionGroup);
+    transferButton->setStyleSheet("background-color: #28A745; color: white; border-radius: 5px; padding: 10px;");
     connect(transferButton, &QPushButton::clicked, this, &FamilyFinances::performTransaction);
+    transactionLayout->addWidget(transferButton);
 
-    transferLayout->addWidget(sourceInput);
-    transferLayout->addWidget(arrowLabel);
-    transferLayout->addWidget(destInput);
-    transferLayout->addWidget(amountInput);
-    transferLayout->addWidget(transferButton);
-    mainLayout->addLayout(transferLayout);
+    mainLayout->addWidget(transactionGroup);
 
-    statusLabel = new QLabel("", bankWidget);
+    // Status label
+    statusLabel = new QLabel(bankWidget);
+    statusLabel->setObjectName("statusLabel");
+    statusLabel->setStyleSheet("color: white;");
     mainLayout->addWidget(statusLabel);
-    updateAccountList();
+
+    // Set background gradient for the main window
+    this->setStyleSheet("QMainWindow { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4BA1D8, stop:1 #4BCAB2); }");
+}
+
+void FamilyFinances::updateAccountList() {
+    accountTable->clearContents();
+    accountTable->setRowCount(0);
+
+    const auto& accounts = bank->getAccounts();
+    for (const auto& account : accounts) {
+        int row = accountTable->rowCount();
+        accountTable->insertRow(row);
+
+        QTableWidgetItem* idItem = new QTableWidgetItem(QString::fromStdString(account->getID()));
+        QTableWidgetItem* ownerItem = new QTableWidgetItem(QString::fromStdString(account->getOwner()));
+        QTableWidgetItem* balanceItem = new QTableWidgetItem(QString::fromStdString(account->getCurrent().toString()));
+
+        accountTable->setItem(row, 0, idItem);
+        accountTable->setItem(row, 1, ownerItem);
+        accountTable->setItem(row, 2, balanceItem);
+    }
 }
 
 QDialog* FamilyFinances::setupAccountCreationDialog() {
@@ -228,15 +268,20 @@ QDialog* FamilyFinances::setupAccountCreationDialog() {
         auto account = bank->open(owner, accountId.toStdString(), minBalance, initial);
         QString password = QString::fromStdString(bank->generatePassword(owner, accountId.toStdString()));
 
-        // Print the current working directory
-        qDebug() << "Current working directory:" << QDir::currentPath();
-
-        if (saveAccountToFile(accountId, password, QString::fromStdString(owner), email)) {
-            dialog->accept();
-            updateAccountList();
+        QFile file(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/user_accounts.cfg");
+        if (file.open(QIODevice::Append | QIODevice::Text)) {
+            QTextStream out(&file);
+            out << "Account ID: " << accountId << "\n";
+            out << "Owner: " << QString::fromStdString(owner) << "\n";
+            out << "Balance: " << QString::fromStdString(initial.toString()) << "\n";
+            out << "Password: " << password << "\n\n";
+            file.close();
         } else {
-            QMessageBox::critical(dialog, "Error", "Failed to save account information.");
+            QMessageBox::warning(dialog, "File Error", "Failed to save account details.");
         }
+
+        dialog->accept();
+        updateAccountList();
     });
 
     connect(cancelButton, &QPushButton::clicked, dialog, &QDialog::reject);
@@ -244,70 +289,78 @@ QDialog* FamilyFinances::setupAccountCreationDialog() {
     return dialog;
 }
 
-bool FamilyFinances::saveAccountToFile(const QString& accountId, const QString& password, 
-                                       const QString& owner, const QString& email) {
-    QStandardPaths::StandardLocation location = QStandardPaths::AppDataLocation;
-    QString appDataPath = QStandardPaths::writableLocation(location);
-    QDir dir(appDataPath);
+void FamilyFinances::saveAllAccountsToFile() {
+    // Get the path to the executable
+    QString executablePath = QCoreApplication::applicationDirPath();
     
-    if (!dir.exists()) {
-        dir.mkpath(".");
+    // Navigate to the project's root directory (assuming the executable is in a subdirectory)
+    QDir projectDir(executablePath);
+    projectDir.cdUp(); // Move up one directory
+    
+    // Create the path to the resources directory
+    QString resourcesPath = projectDir.absoluteFilePath("resources");
+    QDir resourcesDir(resourcesPath);
+    
+    // Ensure the resources directory exists
+    if (!resourcesDir.exists()) {
+        if (!resourcesDir.mkpath(".")) {
+            qDebug() << "Failed to create resources directory:" << resourcesPath;
+            return;
+        }
     }
-
-    QString filePath = dir.filePath("user_accounts.cfg");
+    
+    // Set the file path
+    QString filePath = resourcesDir.filePath("user_accounts.cfg");
     QFileInfo fileInfo(filePath);
     qDebug() << "Absolute file path:" << fileInfo.absoluteFilePath();
 
     QFile file(filePath);
-    if (!file.open(QIODevice::Append | QIODevice::Text)) {
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
         qDebug() << "Failed to open file:" << file.errorString();
-        return false;
+        return;
     }
 
     QTextStream out(&file);
-    out << "Account ID: " << accountId << "\n";
-    out << "Password: " << password << "\n";
-    out << "Owner: " << owner << "\n";
-    out << "Email: " << email << "\n\n";
 
-    out.flush();  // Ensure data is written to the file
-    file.close(); // Explicitly close the file
+    for (const auto& account : bank->getAccounts()) {
+        out << "Account ID: " << QString::fromStdString(account->getID()) << "\n";
+        out << "Owner: " << QString::fromStdString(account->getOwner()) << "\n";
+        out << "Balance: " << QString::fromStdString(account->getCurrent().toString()) << "\n";
+        
+        // Get last 5 transactions for this account
+        const auto transactions = account->getLastTransactions(5);
+        int transactionCount = transactions.size();
+        
+        out << "Last " << transactionCount << " Transactions:\n";
+        for (const auto& transaction : transactions) {
+            out << "  - Date: " << QString::fromStdString(transaction.getDate()) << "\n";
+            out << "    Amount: " << QString::fromStdString(transaction.getAmount().toString()) << "\n";
+            out << "    Type: " << (transaction.getType() == Transaction::Type::DEPOSIT ? "Deposit" : 
+                                    (transaction.getType() == Transaction::Type::WITHDRAWAL ? "Withdrawal" : "Transfer")) << "\n";
+        }
+        out << "\n";
+    }
+
+    out.flush();
+    file.close();
 
     if (out.status() != QTextStream::Ok) {
         qDebug() << "Failed to write to file:" << file.errorString();
-        return false;
-    }
-
-    // Verify file content after writing
-    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        QTextStream in(&file);
-        QString content = in.readAll();
-        qDebug() << "File content after writing:";
-        qDebug() << content;
-        file.close();
-    } else {
-        qDebug() << "Failed to read file after writing:" << file.errorString();
+        return;
     }
 
     qDebug() << "File size after writing:" << QFileInfo(filePath).size() << "bytes";
-    qDebug() << "Successfully wrote to file";
+    qDebug() << "Successfully wrote all accounts and their last 5 transactions to file";
+}
 
-    return true;
+void FamilyFinances::closeEvent(QCloseEvent *event) {
+    saveAllAccountsToFile();
+    event->accept();
 }
 
 QString FamilyFinances::generateUniqueAccountId() {
-    return QString::number(QDateTime::currentMSecsSinceEpoch());
+    QDateTime now = QDateTime::currentDateTime();
+    QString timestamp = now.toString("yyyyMMddHHmmsszzz");  // Format the date and time
+    return timestamp;
 }
 
-void FamilyFinances::updateAccountList() {
-    accountTable->setRowCount(0);
-
-    for (const auto& account : bank->getAccounts()) {
-        int row = accountTable->rowCount();
-        accountTable->insertRow(row);
-
-        accountTable->setItem(row, 0, new QTableWidgetItem(QString::fromStdString(account->getID())));
-        accountTable->setItem(row, 1, new QTableWidgetItem(QString::fromStdString(account->getOwner())));
-        accountTable->setItem(row, 2, new QTableWidgetItem(QString::fromStdString(account->getCurrent().toString())));
-    }
-}

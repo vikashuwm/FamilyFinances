@@ -52,13 +52,5 @@ add_custom_target(copy_resources ALL
     COMMENT "Copying resources into binary directory"
 )
 
-# Add the user_accounts.cfg file to the copy resources step
-add_custom_command(TARGET copy_resources POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    ${CMAKE_SOURCE_DIR}/resources/user_accounts.cfg
-    ${CMAKE_CURRENT_BINARY_DIR}/resources/user_accounts.cfg
-    COMMENT "Copying user_accounts.cfg into binary directory"
-)
-
 # Ensure FamilyFinances depends on the copy_resources target
 add_dependencies(FamilyFinances copy_resources)
