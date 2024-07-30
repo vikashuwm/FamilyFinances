@@ -1,16 +1,20 @@
+# CMakeLists.txt (ui directory)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 set(UI_SOURCES
-    src/UISetup.cpp
     src/FamilyFinances.cpp
     src/LoginPage.cpp
+    src/AccountManager.cpp
+    src/TransactionManager.cpp
 )
 
 set(UI_HEADERS
     include/FamilyFinances.h
     include/LoginPage.h
+    include/AccountManager.h
+    include/TransactionManager.h
 )
 
 add_library(UI ${UI_SOURCES} ${UI_HEADERS})
