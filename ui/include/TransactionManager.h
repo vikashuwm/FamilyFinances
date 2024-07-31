@@ -13,6 +13,7 @@ class TransactionManager : public QWidget {
 public:
     TransactionManager(Bank *bank, QWidget *parent = nullptr);
     void setUserAccess(const QString &username, bool isAdmin);
+    void clearData();
 
 private slots:
     void performTransaction();
@@ -28,5 +29,4 @@ private:
     QString currentUser;
     bool isAdminUser;
 };
-
 #endif // TRANSACTIONMANAGER_H

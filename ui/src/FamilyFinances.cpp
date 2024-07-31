@@ -26,13 +26,13 @@ FamilyFinances::FamilyFinances(QWidget *parent)
     setCentralWidget(stackedWidget);
 
     connect(loginPage, &LoginPage::loginSuccessful, this, &FamilyFinances::onLoginSuccessful);
+    connect(accountManager, &AccountManager::logoutRequested, this, &FamilyFinances::onLogoutRequested);
 
     setupUI();
 }
 
 FamilyFinances::~FamilyFinances() {
     delete bank;
-    // Other widgets are deleted automatically
 }
 
 void FamilyFinances::setupDatabase() {
@@ -47,7 +47,6 @@ void FamilyFinances::setupDatabase() {
 }
 
 void FamilyFinances::closeEvent(QCloseEvent *event) {
-    // No need to call saveAllAccountsToFile() as we're using a database now
     event->accept();
 }
 
@@ -72,4 +71,13 @@ void FamilyFinances::setupUI() {
     mainLayout->addWidget(transactionManager);
 
     this->setStyleSheet("QMainWindow { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4BA1D8, stop:1 #4BCAB2); }");
+}
+
+void FamilyFinances::onLogoutRequested() {
+    qDebug() << "Logout requested";
+    static_cast<QStackedWidget*>(centralWidget())->setCurrentWidget(loginPage);
+    currentUser.clear();
+    isAdminUser = false;
+    accountManager->clearData();
+    transactionManager->clearData();
 }

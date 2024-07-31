@@ -3,10 +3,13 @@
 #include <stdexcept>
 #include <algorithm>
 
-Account::Account(const std::string& owner, const std::string& id, const Money& min, const Money& initial)
-    : owner(owner), id(id), minimum(min), current(initial) {
+Account::Account(const std::string& owner, const std::string& id, const Money& minimumBalance, const Money& initialBalance)
+    : owner(owner), id(id), minimum(minimumBalance), current(initialBalance), admin(false) {
     if (owner.empty() || id.empty() || id.length() < 4) {
         throw std::invalid_argument("Invalid account parameters");
+    }
+    if (initialBalance.compareTo(minimumBalance) < 0) {
+        throw std::invalid_argument("Initial balance cannot be less than minimum balance");
     }
 }
 
@@ -14,6 +17,13 @@ std::string Account::getOwner() const { return owner; }
 std::string Account::getID() const { return id; }
 Money Account::getCurrent() const { return current; }
 Money Account::getMinimum() const { return minimum; }
+std::string Account::getEmail() const { return email; }
+std::string Account::getPassword() const { return password; }
+bool Account::isAdmin() const { return admin; }
+
+void Account::setEmail(const std::string& newEmail) { email = newEmail; }
+void Account::setPassword(const std::string& newPassword) { password = newPassword; }
+void Account::setIsAdmin(bool isAdmin) { admin = isAdmin; }
 
 void Account::adjust(const Money& amount, bool force) {
     Money newBalance = current.add(amount);

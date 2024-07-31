@@ -55,3 +55,7 @@ std::string Money::toString() const {
 int Money::compareTo(const Money& other) const {
     return (cents > other.cents) - (cents < other.cents);
 }
+
+double Money::getDollars() const {
+    return static_cast<double>(cents) / 100.0;
+}

@@ -1,46 +1,48 @@
 #ifndef ACCOUNTMANAGER_H
 #define ACCOUNTMANAGER_H
-
 #include <QWidget>
 #include <QTableWidget>
 #include <QTextEdit>
 #include <QPushButton>
-#include <QVector>
-#include <memory>
+#include <QLineEdit>
 #include "Bank.h"
-#include "Account.h"
 
 class AccountManager : public QWidget {
     Q_OBJECT
 
 public:
-    explicit AccountManager(Bank *bank, QWidget *parent = nullptr);
+    AccountManager(Bank *bank, QWidget *parent = nullptr);
     ~AccountManager();
 
     void setUserAccess(const QString &username, bool isAdmin);
-    void updateAccountList();
+    void clearData();
+
+signals:
+    void logoutRequested();
 
 private slots:
+    void showUserMenu();
     void showCreateAccountForm();
-    void showTransactionHistory(int row, int column);
+    void showAccountDetails(int row, int column);
+    void logout();
 
 private:
     void setupDatabase();
     void setupUI();
+    void updateAccountList();
     void loadAccountsFromDatabase();
     void saveAccountToDatabase(const Account* account);
-    void displayTransactionHistory(const QString &accountId);
-    QDialog* setupAccountCreationDialog();
+    void displayAccountDetails(const QString &accountId);
     QString generateUniqueAccountId();
+    QDialog* setupAccountCreationDialog();
 
     Bank *bank;
-    QVector<Account*> allAccounts;
+    QTableWidget *accountTable;
+    QTextEdit *accountDetailsTextEdit;
+    QPushButton *userButton;
+    QList<Account*> allAccounts;
     QString currentUser;
     bool isAdminUser;
-
-    QTableWidget *accountTable;
-    QTextEdit *transactionHistoryTextEdit;
-    QPushButton *createAccountButton;
 };
 
 #endif // ACCOUNTMANAGER_H

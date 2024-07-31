@@ -1,8 +1,12 @@
+// main.cpp
 #include <QApplication>
 #include <QFile>
 #include <QTextStream>
 #include <QMessageBox>
 #include <QDebug>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
 #include "FamilyFinances.h"
 
 bool loadStyleSheet(QApplication &app, const QString &sheetName)
@@ -24,9 +28,6 @@ bool loadStyleSheet(QApplication &app, const QString &sheetName)
 
 int main(int argc, char *argv[])
 {
-    QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
-    QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
-
     QApplication app(argc, argv);
     
     QApplication::setApplicationName("Family Finances");
@@ -40,7 +41,6 @@ int main(int argc, char *argv[])
             QMessageBox::warning(nullptr, "Style Sheet Error", "Failed to load style sheet. The application may not look as intended.");
         }
     }
-    
     FamilyFinances familyFinances;
     familyFinances.show();
     

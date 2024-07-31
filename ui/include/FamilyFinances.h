@@ -1,12 +1,11 @@
-// FamilyFinances.h
-#ifndef FAMILYFINANCES_H
-#define FAMILYFINANCES_H
+#pragma once
 
 #include <QMainWindow>
+#include <QCloseEvent>
 #include "Bank.h"
-#include "LoginPage.h"
 #include "AccountManager.h"
 #include "TransactionManager.h"
+#include "LoginPage.h"
 
 class FamilyFinances : public QMainWindow {
     Q_OBJECT
@@ -20,19 +19,19 @@ protected:
 
 private slots:
     void onLoginSuccessful(const QString &username, bool isAdmin);
+    void onLogoutRequested();
 
 private:
+    void setupDatabase();
     void setupUI();
     void setUserAccess(const QString &username, bool isAdmin);
-    void setupDatabase();
 
     Bank *bank;
-    LoginPage *loginPage;
     AccountManager *accountManager;
     TransactionManager *transactionManager;
+    LoginPage *loginPage;
     QWidget *bankWidget;
+
     QString currentUser;
     bool isAdminUser;
 };
-
-#endif // FAMILYFINANCES_H
