@@ -1,4 +1,3 @@
-# CMakeLists.txt (ui directory)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
@@ -26,6 +25,7 @@ target_include_directories(UI PUBLIC
 
 target_link_libraries(UI PUBLIC
     Qt6::Widgets
+    Qt6::Sql
     Bank
 )
 

@@ -1,13 +1,18 @@
-// FamilyFinances.cpp
 #include "FamilyFinances.h"
 #include <QVBoxLayout>
 #include <QStackedWidget>
 #include <QWidget>
 #include <QMouseEvent>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDebug>
 
 FamilyFinances::FamilyFinances(QWidget *parent)
     : QMainWindow(parent), bank(new Bank()), isAdminUser(false) {
     setWindowTitle("FamilyFinances");
+
+    setupDatabase();
 
     loginPage = new LoginPage(this);
     bankWidget = new QWidget(this);
@@ -30,8 +35,19 @@ FamilyFinances::~FamilyFinances() {
     // Other widgets are deleted automatically
 }
 
+void FamilyFinances::setupDatabase() {
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    db.setDatabaseName("/Users/vikashkumar/FamilyFinances/familyfinances.db");
+    
+    if (!db.open()) {
+        qDebug() << "Error: connection with database failed";
+    } else {
+        qDebug() << "Database: connection ok";
+    }
+}
+
 void FamilyFinances::closeEvent(QCloseEvent *event) {
-    accountManager->saveAllAccountsToFile();
+    // No need to call saveAllAccountsToFile() as we're using a database now
     event->accept();
 }
 

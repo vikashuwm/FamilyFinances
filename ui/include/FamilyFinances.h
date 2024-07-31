@@ -24,6 +24,7 @@ private slots:
 private:
     void setupUI();
     void setUserAccess(const QString &username, bool isAdmin);
+    void setupDatabase();
 
     Bank *bank;
     LoginPage *loginPage;

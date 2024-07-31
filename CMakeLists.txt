@@ -8,7 +8,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
 # Find Qt6
-find_package(Qt6 COMPONENTS Widgets REQUIRED)
+find_package(Qt6 COMPONENTS Widgets Sql REQUIRED)
 
 # Find nlohmann_json
 find_package(nlohmann_json REQUIRED)
@@ -35,6 +35,7 @@ target_link_libraries(FamilyFinances PRIVATE
     Bank
     UI
     Qt6::Widgets
+    Qt6::Sql
     nlohmann_json::nlohmann_json
 )
 
