@@ -25,12 +25,12 @@ target_include_directories(UI PUBLIC
 )
 
 target_link_libraries(UI PUBLIC
-    Qt5::Widgets
+    Qt6::Widgets
     Bank
 )
 
 # Explicitly run moc on header files
-qt5_wrap_cpp(MOC_FILES ${UI_HEADERS})
+qt6_wrap_cpp(MOC_FILES ${UI_HEADERS})
 
 # Add the generated moc files to the library
 target_sources(UI PRIVATE ${MOC_FILES})

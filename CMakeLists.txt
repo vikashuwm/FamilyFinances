@@ -7,8 +7,8 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Find Qt5
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
+# Find Qt6
+find_package(Qt6 COMPONENTS Widgets REQUIRED)
 
 # Find nlohmann_json
 find_package(nlohmann_json REQUIRED)
@@ -18,7 +18,7 @@ add_subdirectory(bank)
 add_subdirectory(ui)
 
 # Include the resource file
-qt5_add_resources(RESOURCES resources/resources.qrc)
+qt6_add_resources(RESOURCES resources/resources.qrc)
 
 # FamilyFinances executable
 add_executable(FamilyFinances
@@ -34,7 +34,7 @@ target_include_directories(FamilyFinances PRIVATE
 target_link_libraries(FamilyFinances PRIVATE
     Bank
     UI
-    Qt5::Widgets
+    Qt6::Widgets
     nlohmann_json::nlohmann_json
 )
 
