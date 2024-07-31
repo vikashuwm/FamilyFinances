@@ -1,3 +1,13 @@
+
+#include "FamilyFinances.h"
+#include <QVBoxLayout>
+#include <QStackedWidget>
+#include <QWidget>
+#include <QMouseEvent>
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDebug>
 #include "FamilyFinances.h"
 #include <QVBoxLayout>
 #include <QStackedWidget>
@@ -10,9 +20,13 @@
 
 FamilyFinances::FamilyFinances(QWidget *parent)
     : QMainWindow(parent), bank(new Bank()), isAdminUser(false) {
+    qDebug() << "Inside FamilyFinances constructor:" << "\n";
     setWindowTitle("FamilyFinances");
-
-    setupDatabase();
+    // Initialize database connection
+    if (!initializeDatabase()) {
+        qCritical() << "Failed to initialize database. Exiting.";
+        exit(1);
+    }
 
     loginPage = new LoginPage(this);
     bankWidget = new QWidget(this);
@@ -27,23 +41,36 @@ FamilyFinances::FamilyFinances(QWidget *parent)
 
     connect(loginPage, &LoginPage::loginSuccessful, this, &FamilyFinances::onLoginSuccessful);
     connect(accountManager, &AccountManager::logoutRequested, this, &FamilyFinances::onLogoutRequested);
-
+    connect(transactionManager, &TransactionManager::transactionCompleted, accountManager, &AccountManager::onTransactionCompleted);
     setupUI();
 }
 
 FamilyFinances::~FamilyFinances() {
     delete bank;
+    QSqlDatabase::database().close();
 }
 
-void FamilyFinances::setupDatabase() {
+bool FamilyFinances::initializeDatabase() {
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName("/Users/vikashkumar/FamilyFinances/familyfinances.db");
-    
+
     if (!db.open()) {
-        qDebug() << "Error: connection with database failed";
-    } else {
-        qDebug() << "Database: connection ok";
+        qDebug() << "Error: connection with database failed - " << db.lastError().text();
+        return false;
     }
+
+    qDebug() << "Database opened successfully";
+    return true;
+}
+
+void FamilyFinances::onLogoutRequested() {
+    qDebug() << "Logout requested";
+    static_cast<QStackedWidget*>(centralWidget())->setCurrentWidget(loginPage);
+    currentUser.clear();
+    isAdminUser = false;
+    loginPage->clearInputs();
+    accountManager->clearData();
+    transactionManager->clearData();
 }
 
 void FamilyFinances::closeEvent(QCloseEvent *event) {
@@ -71,13 +98,4 @@ void FamilyFinances::setupUI() {
     mainLayout->addWidget(transactionManager);
 
     this->setStyleSheet("QMainWindow { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4BA1D8, stop:1 #4BCAB2); }");
-}
-
-void FamilyFinances::onLogoutRequested() {
-    qDebug() << "Logout requested";
-    static_cast<QStackedWidget*>(centralWidget())->setCurrentWidget(loginPage);
-    currentUser.clear();
-    isAdminUser = false;
-    accountManager->clearData();
-    transactionManager->clearData();
 }

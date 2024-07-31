@@ -3,6 +3,9 @@
         "stdexcept": "cpp",
         "locale": "cpp",
         "new": "cpp",
-        "vector": "cpp"
+        "vector": "cpp",
+        "qlabel": "cpp",
+        "qmouseevent": "cpp",
+        "qsqlquery": "cpp"
     }
 }

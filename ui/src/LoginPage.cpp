@@ -63,7 +63,7 @@ void LoginPage::attemptLogin() {
 
 bool LoginPage::authenticateUser(const QString &username, const QString &password) {
     QSqlQuery query;
-    query.prepare("SELECT password FROM users WHERE username = :username");
+    query.prepare("SELECT password FROM accounts WHERE username = :username");
     query.bindValue(":username", username);
 
     if (query.exec() && query.next()) {
@@ -76,7 +76,7 @@ bool LoginPage::authenticateUser(const QString &username, const QString &passwor
 
 bool LoginPage::checkIfAdmin(const QString &username) {
     QSqlQuery query;
-    query.prepare("SELECT is_admin FROM users WHERE username = :username");
+    query.prepare("SELECT is_admin FROM accounts WHERE username = :username");
     query.bindValue(":username", username);
 
     if (query.exec() && query.next()) {

@@ -15,6 +15,11 @@ signals:
 
 private slots:
     void attemptLogin();
+public slots:
+    void clearInputs() {
+        usernameInput->clear();
+        passwordInput->clear();
+    }
 
 private:
     void setupUI();

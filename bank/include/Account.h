@@ -25,8 +25,11 @@ public:
     void adjust(const Money& amount, bool force = false);
     void addTransaction(const Transaction& transaction);
     std::vector<Transaction> getLastTransactions(int count) const;
+    std::string getUsername() const;
+    void setUsername(const std::string& newUsername);
 
 private:
+    std::string username;
     std::string owner;
     std::string id;
     Money minimum;

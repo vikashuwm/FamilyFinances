@@ -45,3 +45,6 @@ std::vector<Transaction> Account::getLastTransactions(int count) const {
     }
     return lastTransactions;
 }
+
+std::string Account::getUsername() const { return username; }
+void Account::setUsername(const std::string& newUsername) { username = newUsername; }

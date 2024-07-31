@@ -16,6 +16,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *event) override;
+    bool initializeDatabase();
 
 private slots:
     void onLoginSuccessful(const QString &username, bool isAdmin);

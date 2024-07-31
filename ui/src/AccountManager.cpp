@@ -1,5 +1,6 @@
 #include "AccountManager.h"
 #include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QDialog>
 #include <QLineEdit>
@@ -12,10 +13,11 @@
 #include <QSqlError>
 #include <QDebug>
 #include <QMenu>
+#include <QTableWidget>
+#include <QListWidgetItem>
 
 AccountManager::AccountManager(Bank *bank, QWidget *parent)
     : QWidget(parent), bank(bank), isAdminUser(false) {
-    setupDatabase();
     setupUI();
     loadAccountsFromDatabase();
 }
@@ -24,63 +26,32 @@ AccountManager::~AccountManager() {
     qDeleteAll(allAccounts);
 }
 
-void AccountManager::setupDatabase() {
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-    db.setDatabaseName("/Users/vikashkumar/FamilyFinances/familyfinances.db");
-    
-    if (!db.open()) {
-        qDebug() << "Error: connection with database failed";
-    } else {
-        qDebug() << "Database: connection ok";
-    }
-
-    QSqlQuery query;
-    query.exec("CREATE TABLE IF NOT EXISTS accounts ("
-               "id TEXT PRIMARY KEY, "
-               "owner TEXT, "
-               "email TEXT UNIQUE, "
-               "password TEXT, "
-               "balance REAL, "
-               "is_admin BOOLEAN)");
-
-    query.exec("CREATE TABLE IF NOT EXISTS transactions ("
-               "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-               "account_id TEXT, "
-               "amount REAL, "
-               "type TEXT, "
-               "date TEXT, "
-               "FOREIGN KEY (account_id) REFERENCES accounts(id))");
-}
-
 void AccountManager::setupUI() {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
 
-    // Create a horizontal layout for the button
+    // User button setup
     QHBoxLayout *buttonLayout = new QHBoxLayout();
     buttonLayout->setSpacing(0);
     buttonLayout->setContentsMargins(0, 0, 0, 0);
 
-    // Create the main part of the button
     userButton = new QPushButton(this);
     userButton->setObjectName("userButton");
-    userButton->setText("Admin"); // Or "User", depending on the logged-in user type
+    userButton->setText("User");
     userButton->setCursor(Qt::PointingHandCursor);
 
-    // Create a label for the dropdown arrow
     QLabel *arrowLabel = new QLabel(this);
     arrowLabel->setObjectName("arrowLabel");
     arrowLabel->setText("\u25BC"); // Unicode for downward triangle
 
-    // Add the button and arrow label to the horizontal layout
     buttonLayout->addWidget(userButton);
     buttonLayout->addWidget(arrowLabel);
 
-    // Create a container widget for the button and arrow
     QWidget *buttonContainer = new QWidget(this);
     buttonContainer->setLayout(buttonLayout);
     buttonContainer->setObjectName("buttonContainer");
 
-    // Set the style sheet for the button components
     QString buttonStyle = 
         "QWidget#buttonContainer {"
         "    background-color: #007BFF;"
@@ -107,26 +78,25 @@ void AccountManager::setupUI() {
 
     buttonContainer->setStyleSheet(buttonStyle);
 
-    // Connect the click event to showUserMenu
     connect(userButton, &QPushButton::clicked, this, &AccountManager::showUserMenu);
     connect(arrowLabel, &QLabel::linkActivated, this, &AccountManager::showUserMenu);
 
-    // Add the button container to the main layout
     QHBoxLayout *topLayout = new QHBoxLayout();
     topLayout->addStretch();
     topLayout->addWidget(buttonContainer);
     mainLayout->addLayout(topLayout);
 
-    // ... (rest of the setupUI function remains unchanged)
-
-    // Create and set up the account table
+    // Admin View: Account Table
     accountTable = new QTableWidget(this);
     accountTable->setObjectName("accountTable");
     accountTable->setColumnCount(3);
     accountTable->setHorizontalHeaderLabels({"Account ID", "Owner", "Balance"});
     accountTable->horizontalHeader()->setStretchLastSection(true);
-    accountTable->setStyleSheet("QTableWidget { border: 1px solid #CCCCCC; border-radius: 4px; }"
-                                "QHeaderView::section { background-color: #333333; color: white; padding: 5px; }");
+    accountTable->setStyleSheet(
+        "QTableWidget { border: 1px solid #CCCCCC; border-radius: 4px; }"
+        "QHeaderView::section { background-color: #333333; color: white; padding: 5px; }"
+        "QTableWidget::item { padding: 5px; }"
+    );
     connect(accountTable, &QTableWidget::cellClicked, this, &AccountManager::showAccountDetails);
     
     int rowHeight = accountTable->verticalHeader()->defaultSectionSize();
@@ -136,21 +106,60 @@ void AccountManager::setupUI() {
     
     mainLayout->addWidget(accountTable);
 
-    // Create and set up the account details text edit
-    accountDetailsTextEdit = new QTextEdit(this);
-    accountDetailsTextEdit->setReadOnly(true);
-    accountDetailsTextEdit->setStyleSheet("QTextEdit { border: 1px solid #CCCCCC; border-radius: 4px; padding: 10px; }");
-    accountDetailsTextEdit->setMinimumHeight(150);
-    mainLayout->addWidget(accountDetailsTextEdit);
+    // User View: Account Details
+    accountDetailsWidget = new QWidget(this);
+    QVBoxLayout *detailsLayout = new QVBoxLayout(accountDetailsWidget);
+    
+    accountNameLabel = new QLabel(accountDetailsWidget);
+    accountNameLabel->setAlignment(Qt::AlignCenter);
+    accountNameLabel->setStyleSheet("font-size: 24px; font-weight: bold; color: #333333; margin-bottom: 10px;");
+    detailsLayout->addWidget(accountNameLabel);
+
+    accountIdLabel = new QLabel(accountDetailsWidget);
+    accountIdLabel->setAlignment(Qt::AlignCenter);
+    accountIdLabel->setStyleSheet("font-size: 16px; color: #666666; margin-bottom: 20px;");
+    detailsLayout->addWidget(accountIdLabel);
+
+    QHBoxLayout *balanceLayout = new QHBoxLayout();
+    QLabel *balanceTitle = new QLabel("Current Balance:", accountDetailsWidget);
+    balanceTitle->setStyleSheet("font-size: 18px; font-weight: bold; color: #333333;");
+    balanceLayout->addWidget(balanceTitle);
+
+    accountBalanceLabel = new QLabel(accountDetailsWidget);
+    accountBalanceLabel->setStyleSheet("font-size: 18px; color: #28a745; font-weight: bold;");
+    balanceLayout->addWidget(accountBalanceLabel);
+    detailsLayout->addLayout(balanceLayout);
+
+    accountEmailLabel = new QLabel(accountDetailsWidget);
+    accountEmailLabel->setAlignment(Qt::AlignCenter);
+    accountEmailLabel->setStyleSheet("font-size: 16px; color: #666666; margin-top: 10px;");
+    detailsLayout->addWidget(accountEmailLabel);
+
+    // Transaction history
+    transactionHistoryLabel = new QLabel("Recent Transactions:", accountDetailsWidget);
+    transactionHistoryLabel->setStyleSheet("font-size: 18px; font-weight: bold; color: #333333; margin-top: 20px;");
+    detailsLayout->addWidget(transactionHistoryLabel);
+
+    transactionList = new QListWidget(accountDetailsWidget);
+    transactionList->setStyleSheet(
+        "QListWidget { border: 1px solid #CCCCCC; border-radius: 4px; }"
+        "QListWidget::item { padding: 5px; }"
+    );
+    detailsLayout->addWidget(transactionList);
+
+    mainLayout->addWidget(accountDetailsWidget);
 
     // Set the layout for the main widget
     setLayout(mainLayout);
 
+    // Initially hide both views
+    accountTable->hide();
+    accountDetailsWidget->hide();
+
     // Set minimum size for the widget
-    int minWidth = 600;
-    int minHeight = tableHeight + buttonContainer->sizeHint().height() + accountDetailsTextEdit->minimumHeight() + 40;
-    setMinimumSize(minWidth, minHeight);
+    setMinimumSize(600, tableHeight + buttonContainer->sizeHint().height() + 200);
 }
+
 
 void AccountManager::showUserMenu() {
     QMenu *menu = new QMenu(this);
@@ -169,13 +178,14 @@ void AccountManager::showUserMenu() {
                         "    color: white;"
                         "}");
 
-    QAction *addAccountAction = new QAction("Add Account", this);
+    if (isAdminUser) {
+        QAction *addAccountAction = new QAction("Add Account", this);
+        connect(addAccountAction, &QAction::triggered, this, &AccountManager::showCreateAccountForm);
+        menu->addAction(addAccountAction);
+    }
+
     QAction *logoutAction = new QAction("Logout", this);
-
-    connect(addAccountAction, &QAction::triggered, this, &AccountManager::showCreateAccountForm);
     connect(logoutAction, &QAction::triggered, this, &AccountManager::logout);
-
-    menu->addAction(addAccountAction);
     menu->addAction(logoutAction);
 
     // Calculate the position for the menu
@@ -189,17 +199,23 @@ void AccountManager::showUserMenu() {
     connect(menu, &QMenu::aboutToHide, menu, &QObject::deleteLater);
 }
 
+
 void AccountManager::logout() {
     emit logoutRequested();
 }
 
-
 void AccountManager::saveAccountToDatabase(const Account* account) {
+    if (account->getOwner().empty() || account->getID().empty() || account->getUsername().empty()) {
+        qDebug() << "Owner, ID, or Username cannot be empty.";
+        return;
+    }
+
     QSqlQuery query;
-    query.prepare("INSERT OR REPLACE INTO accounts (id, owner, email, password, balance, is_admin) "
-                  "VALUES (:id, :owner, :email, :password, :balance, :is_admin)");
+    query.prepare("INSERT OR REPLACE INTO accounts (id, owner, username, email, password, balance, is_admin) "
+                  "VALUES (:id, :owner, :username, :email, :password, :balance, :is_admin)");
     query.bindValue(":id", QString::fromStdString(account->getID()));
     query.bindValue(":owner", QString::fromStdString(account->getOwner()));
+    query.bindValue(":username", QString::fromStdString(account->getUsername()));
     query.bindValue(":email", QString::fromStdString(account->getEmail()));
     query.bindValue(":password", QString::fromStdString(account->getPassword()));
     query.bindValue(":balance", account->getCurrent().getDollars());
@@ -209,12 +225,14 @@ void AccountManager::saveAccountToDatabase(const Account* account) {
         qDebug() << "Error saving account:" << query.lastError().text();
     }
 }
+
 void AccountManager::loadAccountsFromDatabase() {
     allAccounts.clear();
     QSqlQuery query("SELECT * FROM accounts");
     while (query.next()) {
         QString id = query.value("id").toString();
         std::string owner = query.value("owner").toString().toStdString();
+        std::string username = query.value("username").toString().toStdString();
         QString email = query.value("email").toString();
         QString password = query.value("password").toString();
         double balance = query.value("balance").toDouble();
@@ -224,6 +242,7 @@ void AccountManager::loadAccountsFromDatabase() {
         Money minimum = Money::fromDollars(0); // Or set an appropriate minimum balance
 
         Account* account = new Account(owner, id.toStdString(), minimum, current);
+        account->setUsername(username);
         account->setEmail(email.toStdString());
         account->setPassword(password.toStdString());
         account->setIsAdmin(isAdmin);
@@ -231,6 +250,7 @@ void AccountManager::loadAccountsFromDatabase() {
     }
     updateAccountList();
 }
+
 void AccountManager::updateAccountList() {
     accountTable->clearContents();
     accountTable->setRowCount(0);
@@ -239,6 +259,11 @@ void AccountManager::updateAccountList() {
         QString accountId = QString::fromStdString(account->getID());
         QString owner = QString::fromStdString(account->getOwner());
         
+        // Skip admin accounts in the UI display
+        if (account->isAdmin()) {
+            continue;
+        }
+
         if (isAdminUser || (owner.toLower() == currentUser.toLower())) {
             int row = accountTable->rowCount();
             accountTable->insertRow(row);
@@ -255,19 +280,57 @@ void AccountManager::updateAccountList() {
 }
 
 void AccountManager::showCreateAccountForm() {
-    QDialog* dialog = setupAccountCreationDialog();
-    if (dialog->exec() == QDialog::Accepted) {
-        loadAccountsFromDatabase();
-        updateAccountList();
+    if (isAdminUser) {
+        QDialog* dialog = setupAccountCreationDialog();
+        if (dialog->exec() == QDialog::Accepted) {
+            loadAccountsFromDatabase();  // Reload accounts from the database
+            updateAccountList();  // Update the UI
+        }
+        delete dialog;
+    } else {
+        QMessageBox::warning(this, "Permission Denied", "Only admin users can create new accounts.");
     }
-    delete dialog;
+}
+
+void AccountManager::clearData() {
+    accountTable->clearContents();
+    accountTable->setRowCount(0);
+    accountDetailsTextEdit->clear();
+    qDeleteAll(allAccounts);
+    allAccounts.clear();
+}
+
+void AccountManager::setUserAccess(const QString &username, bool isAdmin) {
+    currentUser = username;
+    isAdminUser = isAdmin;
+    userButton->setText(username);
+    loadAccountsFromDatabase();
+    
+    if (isAdmin) {
+        accountTable->show();
+        accountDetailsWidget->hide();
+        updateAccountList();
+    } else {
+        accountTable->hide();
+        accountDetailsWidget->show();
+        displayAccountDetails(QString::fromStdString(getCurrentUserAccountId()));
+    }
+}
+
+std::string AccountManager::getCurrentUserAccountId() {
+    for (const auto& account : allAccounts) {
+        if (QString::fromStdString(account->getUsername()).toLower() == currentUser.toLower()) {
+            return account->getID();
+        }
+    }
+    return "";
 }
 
 QDialog* AccountManager::setupAccountCreationDialog() {
     QDialog* dialog = new QDialog(this);
     dialog->setWindowTitle("Create Account");
     dialog->setObjectName("createAccountDialog");
-    dialog->setFixedSize(400, 400);
+    dialog->setFixedSize(400, 450);  // Increased height to accommodate the new field
 
     QVBoxLayout* layout = new QVBoxLayout(dialog);
     layout->setSpacing(15);
@@ -278,7 +341,7 @@ QDialog* AccountManager::setupAccountCreationDialog() {
     titleLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(titleLabel);
 
-    QStringList placeholders = {"First Name", "Last Name", "Email Address", "Initial Balance"};
+    QStringList placeholders = {"First Name", "Last Name", "Username", "Email Address", "Initial Balance"};
     QList<QLineEdit*> inputs;
     for (const QString& placeholder : placeholders) {
         QLineEdit* input = new QLineEdit(dialog);
@@ -301,17 +364,18 @@ QDialog* AccountManager::setupAccountCreationDialog() {
     connect(createButton, &QPushButton::clicked, [dialog, inputs, this]() {
         QString firstName = inputs[0]->text().trimmed();
         QString lastName = inputs[1]->text().trimmed();
-        QString email = inputs[2]->text().trimmed();
-        QString initialBalanceStr = inputs[3]->text().trimmed();
+        QString username = inputs[2]->text().trimmed();
+        QString email = inputs[3]->text().trimmed();
+        QString initialBalanceStr = inputs[4]->text().trimmed();
 
-        if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || initialBalanceStr.isEmpty()) {
+        if (firstName.isEmpty() || lastName.isEmpty() || username.isEmpty() || email.isEmpty() || initialBalanceStr.isEmpty()) {
             QMessageBox::warning(dialog, "Input Error", "Please fill in all fields.");
             return;
         }
 
         bool ok;
         double initialBalance = initialBalanceStr.toDouble(&ok);
-        if (!ok || initialBalance <= 0) {
+        if (!ok || initialBalance < 0) {
             QMessageBox::warning(dialog, "Input Error", "Please enter a valid initial balance.");
             return;
         }
@@ -319,17 +383,24 @@ QDialog* AccountManager::setupAccountCreationDialog() {
         QString accountId = generateUniqueAccountId();
         std::string owner = (firstName + " " + lastName).toStdString();
         Money initial = Money::fromDollars(initialBalance);
-        Money minimum = Money::fromDollars(0); // Or set an appropriate minimum balance
+        Money minimum = Money::fromDollars(0);
 
         Account* newAccount = new Account(owner, accountId.toStdString(), minimum, initial);
+        newAccount->setUsername(username.toStdString());
         newAccount->setEmail(email.toStdString());
         
         QString password = QString::fromStdString(bank->generatePassword(owner, accountId.toStdString()));
         newAccount->setPassword(password.toStdString());
         newAccount->setIsAdmin(false);
 
-        allAccounts.append(newAccount);
         saveAccountToDatabase(newAccount);
+
+        // Show a message box with the account details
+        QString message = QString("Account created successfully!\n\nAccount ID: %1\nUsername: %2\nPassword: %3")
+                              .arg(accountId)
+                              .arg(username)
+                              .arg(password);
+        QMessageBox::information(dialog, "Account Created", message);
 
         dialog->accept();
     });
@@ -338,6 +409,7 @@ QDialog* AccountManager::setupAccountCreationDialog() {
 
     return dialog;
 }
+
 void AccountManager::showAccountDetails(int row, int column) {
     Q_UNUSED(column);
     QString accountId = accountTable->item(row, 0)->text();
@@ -354,42 +426,49 @@ void AccountManager::displayAccountDetails(const QString &accountId) {
         QString email = accountQuery.value("email").toString();
         double balance = accountQuery.value("balance").toDouble();
 
-        QString accountDetails = QString("Account Details:\n\nID: %1\nOwner: %2\nEmail: %3\nBalance: $%4\n\n")
-                                     .arg(accountId)
-                                     .arg(owner)
-                                     .arg(email)
-                                     .arg(balance, 0, 'f', 2);
+        accountNameLabel->setText(owner);
+        accountIdLabel->setText("Account ID: " + accountId);
+        accountBalanceLabel->setText(QString("$%1").arg(balance, 0, 'f', 2));
+        accountEmailLabel->setText(email);
 
-        accountDetails += "Recent Transactions:\n\n";
-
+        // Fetch and display recent transactions
         QSqlQuery transactionQuery;
         transactionQuery.prepare("SELECT * FROM transactions WHERE account_id = :account_id ORDER BY date DESC LIMIT 5");
         transactionQuery.bindValue(":account_id", accountId);
 
+        transactionList->clear();
         if (transactionQuery.exec()) {
             while (transactionQuery.next()) {
                 QString date = transactionQuery.value("date").toString();
-                QString amount = transactionQuery.value("amount").toString();
+                double amount = transactionQuery.value("amount").toDouble();
                 QString type = transactionQuery.value("type").toString();
 
-                accountDetails += QString("Date: %1\nAmount: $%2\nType: %3\n\n")
-                                      .arg(date)
-                                      .arg(amount)
-                                      .arg(type);
+                QString transactionText = QString("%1 | %2 | $%3")
+                                              .arg(date)
+                                              .arg(type)
+                                              .arg(qAbs(amount), 0, 'f', 2);
+                QListWidgetItem *item = new QListWidgetItem(transactionText);
+                
+                // Set color based on transaction type
+                if (amount < 0) {
+                    item->setForeground(Qt::red);
+                    transactionText = "- " + transactionText;
+                } else {
+                    item->setForeground(Qt::darkGreen);
+                    transactionText = "+ " + transactionText;
+                }
+                
+                item->setText(transactionText);
+                transactionList->addItem(item);
             }
         }
-
-        accountDetailsTextEdit->setPlainText(accountDetails);
     } else {
-        accountDetailsTextEdit->setPlainText("No account details found for Account " + accountId);
+        accountNameLabel->setText("No account found");
+        accountIdLabel->clear();
+        accountBalanceLabel->clear();
+        accountEmailLabel->clear();
+        transactionList->clear();
     }
-}
-
-void AccountManager::setUserAccess(const QString &username, bool isAdmin) {
-    currentUser = username;
-    isAdminUser = isAdmin;
-    userButton->setText(username);
-    updateAccountList();
 }
 
 QString AccountManager::generateUniqueAccountId() {
@@ -397,10 +476,13 @@ QString AccountManager::generateUniqueAccountId() {
     return now.toString("yyyyMMddHHmmsszzz");  // Format: YearMonthDayHourMinuteSecondMillisecond
 }
 
-void AccountManager::clearData() {
-    accountTable->clearContents();
-    accountTable->setRowCount(0);
-    accountDetailsTextEdit->clear();
-    qDeleteAll(allAccounts);
-    allAccounts.clear();
+
+void AccountManager::onTransactionCompleted() {
+    loadAccountsFromDatabase();
+    
+    if (isAdminUser) {
+        updateAccountList();
+    } else {
+        displayAccountDetails(QString::fromStdString(getCurrentUserAccountId()));
+    }
 }
