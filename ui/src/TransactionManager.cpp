@@ -8,6 +8,7 @@
 #include <QSqlQuery>
 #include <QDateTime>
 #include <QDebug>
+#include <QLabel>
 
 TransactionManager::TransactionManager(Bank *bank, QWidget *parent)
     : QWidget(parent), bank(bank), isAdminUser(false) {
@@ -16,59 +17,83 @@ TransactionManager::TransactionManager(Bank *bank, QWidget *parent)
 }
 
 void TransactionManager::setupUI() {
-    QVBoxLayout *layout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setSpacing(20);
+    mainLayout->setContentsMargins(20, 20, 20, 20);
 
+    // Transaction form
     QGroupBox* transactionGroup = new QGroupBox(this);
-    transactionGroup->setStyleSheet("QGroupBox { border: 1px solid #CCCCCC; border-radius: 10px; padding: 10px; background-color: rgba(255, 255, 255, 0.1); }");
+    transactionGroup->setStyleSheet(
+        "QGroupBox {"
+        "    border: 1px solid #E0E0E0;"
+        "    border-radius: 8px;"
+        "    background-color: white;"
+        "    padding: 15px;"
+        "}"
+    );
     QVBoxLayout* transactionLayout = new QVBoxLayout(transactionGroup);
 
-    QHBoxLayout* inputsLayout = new QHBoxLayout();
     QStringList inputLabels = {"Source Account", "Destination Account", "Amount"};
     QList<QLineEdit*> inputs = {sourceInput = new QLineEdit(), destInput = new QLineEdit(), amountInput = new QLineEdit()};
 
     for (int i = 0; i < inputLabels.size(); ++i) {
-        QVBoxLayout* inputGroup = new QVBoxLayout();
-        QLabel* label = new QLabel(inputLabels[i]);
-        label->setStyleSheet("color: white;");
-        inputGroup->addWidget(label);
-        inputGroup->addWidget(inputs[i]);
-        inputs[i]->setStyleSheet("background-color: rgba(255, 255, 255, 0.2); border: none; border-radius: 5px; padding: 5px; color: white;");
-        inputsLayout->addLayout(inputGroup);
+        QLabel* label = new QLabel(inputLabels[i], this);
+        label->setStyleSheet("color: #34495E; font-weight: bold; margin-top: 10px;");
+        transactionLayout->addWidget(label);
 
-        if (i < inputLabels.size() - 1) {
-            QLabel* arrow = new QLabel("→");
-            arrow->setStyleSheet("color: white; font-size: 20px;");
-            inputsLayout->addWidget(arrow);
-        }
+        inputs[i]->setStyleSheet(
+            "QLineEdit {"
+            "    border: 1px solid #BDC3C7;"
+            "    border-radius: 4px;"
+            "    padding: 8px;"
+            "    background-color: #ECF0F1;"
+            "    color: #2C3E50;"
+            "}"
+            "QLineEdit:focus {"
+            "    border-color: #3498DB;"
+            "}"
+        );
+        transactionLayout->addWidget(inputs[i]);
     }
-    transactionLayout->addLayout(inputsLayout);
 
-    transferButton = new QPushButton("TRANSFER", transactionGroup);
-    transferButton->setStyleSheet("background-color: #28A745; color: white; border-radius: 5px; padding: 10px;");
+    transferButton = new QPushButton("Transfer", this);
+    transferButton->setStyleSheet(
+        "QPushButton {"
+        "    background-color: #3498DB;"
+        "    color: white;"
+        "    border: none;"
+        "    padding: 10px;"
+        "    border-radius: 4px;"
+        "    font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "    background-color: #2980B9;"
+        "}"
+        "QPushButton:pressed {"
+        "    background-color: #2473A6;"
+        "}"
+    );
     transactionLayout->addWidget(transferButton);
 
-    layout->addWidget(transactionGroup);
+    mainLayout->addWidget(transactionGroup);
 
     statusLabel = new QLabel(this);
-    statusLabel->setObjectName("statusLabel");
-    statusLabel->setStyleSheet("color: white;");
-    layout->addWidget(statusLabel);
+    statusLabel->setStyleSheet("color: #2C3E50; margin-top: 10px;");
+    mainLayout->addWidget(statusLabel);
 
-    transactionHistoryTextEdit = new QTextEdit(this);
-    transactionHistoryTextEdit->setReadOnly(true);
-    transactionHistoryTextEdit->setStyleSheet("background-color: rgba(255, 255, 255, 0.2); border: none; border-radius: 5px; padding: 5px; color: white;");
-    layout->addWidget(transactionHistoryTextEdit);
+    setLayout(mainLayout);
 
-    QPushButton* historyButton = new QPushButton("Show Transaction History", this);
-    historyButton->setStyleSheet("background-color: #007BFF; color: white; border-radius: 5px; padding: 10px;");
-    layout->addWidget(historyButton);
-
-    setLayout(layout);
+    // Set overall widget style
+    this->setStyleSheet(
+        "QWidget {"
+        "    font-size: 14px;"
+        "    color: #2C3E50;"
+        "}"
+    );
 }
 
 void TransactionManager::setupConnections() {
     connect(transferButton, &QPushButton::clicked, this, &TransactionManager::performTransaction);
-    connect(findChild<QPushButton*>("Show Transaction History"), &QPushButton::clicked, this, &TransactionManager::showTransactionHistory);
 }
 
 void TransactionManager::setUserAccess(const QString &username, bool isAdmin) {
@@ -76,11 +101,9 @@ void TransactionManager::setUserAccess(const QString &username, bool isAdmin) {
     isAdminUser = isAdmin;
 
     if (!isAdminUser) {
-        // Pre-fill the source account with the user's account ID
         QString userAccountId = getUserAccountId(username);
         sourceInput->setText(userAccountId);
         sourceInput->setReadOnly(true);
-        updateTransactionHistory(userAccountId);
     } else {
         sourceInput->clear();
         sourceInput->setReadOnly(false);
@@ -88,16 +111,6 @@ void TransactionManager::setUserAccess(const QString &username, bool isAdmin) {
     
     destInput->clear();
     amountInput->clear();
-}
-QString TransactionManager::getUserAccountId(const QString &username) {
-    QSqlQuery query;
-    query.prepare("SELECT id FROM accounts WHERE username = :username");
-    query.bindValue(":username", username);
-    
-    if (query.exec() && query.next()) {
-        return query.value("id").toString();
-    }
-    return "";
 }
 
 void TransactionManager::performTransaction() {
@@ -118,26 +131,32 @@ void TransactionManager::performTransaction() {
         return;
     }
 
+    QSqlDatabase::database().transaction();
+
     QSqlQuery query;
-    query.prepare("SELECT * FROM accounts WHERE id = :id");
     
     // Check source account
+    query.prepare("SELECT balance FROM accounts WHERE id = :id");
     query.bindValue(":id", sourceId);
     if (!query.exec() || !query.next()) {
+        QSqlDatabase::database().rollback();
         statusLabel->setText("Error: Invalid source account ID.");
         return;
     }
     double sourceBalance = query.value("balance").toDouble();
     
     // Check destination account
+    query.prepare("SELECT id FROM accounts WHERE id = :id");
     query.bindValue(":id", destId);
     if (!query.exec() || !query.next()) {
+        QSqlDatabase::database().rollback();
         statusLabel->setText("Error: Invalid destination account ID.");
         return;
     }
     
-    // Perform transaction
+    // Check for sufficient funds
     if (sourceBalance < amount) {
+        QSqlDatabase::database().rollback();
         statusLabel->setText("Error: Insufficient funds in source account.");
         return;
     }
@@ -147,6 +166,7 @@ void TransactionManager::performTransaction() {
     query.bindValue(":amount", amount);
     query.bindValue(":id", sourceId);
     if (!query.exec()) {
+        QSqlDatabase::database().rollback();
         statusLabel->setText("Error: Failed to update source account.");
         return;
     }
@@ -156,40 +176,66 @@ void TransactionManager::performTransaction() {
     query.bindValue(":amount", amount);
     query.bindValue(":id", destId);
     if (!query.exec()) {
+        QSqlDatabase::database().rollback();
         statusLabel->setText("Error: Failed to update destination account.");
         return;
     }
     
-    // Record transaction
+    // Record transaction for source account
     query.prepare("INSERT INTO transactions (account_id, amount, type, date) VALUES (:source_id, :amount, :type, :date)");
     query.bindValue(":source_id", sourceId);
     query.bindValue(":amount", -amount);
     query.bindValue(":type", "TRANSFER");
     query.bindValue(":date", QDateTime::currentDateTime().toString(Qt::ISODate));
     if (!query.exec()) {
+        QSqlDatabase::database().rollback();
         qDebug() << "Error inserting source transaction:" << query.lastError().text();
+        statusLabel->setText("Error: Failed to record source transaction.");
+        return;
     }
     
+    // Record transaction for destination account
     query.prepare("INSERT INTO transactions (account_id, amount, type, date) VALUES (:dest_id, :amount, :type, :date)");
     query.bindValue(":dest_id", destId);
     query.bindValue(":amount", amount);
     query.bindValue(":type", "TRANSFER");
     query.bindValue(":date", QDateTime::currentDateTime().toString(Qt::ISODate));
     if (!query.exec()) {
+        QSqlDatabase::database().rollback();
         qDebug() << "Error inserting destination transaction:" << query.lastError().text();
+        statusLabel->setText("Error: Failed to record destination transaction.");
+        return;
     }
 
-    statusLabel->setText("Transaction completed successfully.");
-    
-    // Clear inputs
-    if (!isAdminUser) {
-        sourceInput->clear();
+    if (QSqlDatabase::database().commit()) {
+        statusLabel->setText("Transaction completed successfully.");
+        
+        // Clear inputs
+        if (!isAdminUser) {
+            destInput->clear();
+        } else {
+            sourceInput->clear();
+            destInput->clear();
+        }
+        amountInput->clear();
+        
+        // Emit the signal to notify that a transaction has been completed
+        emit transactionCompleted();
+    } else {
+        QSqlDatabase::database().rollback();
+        statusLabel->setText("Error: Transaction failed. Please try again.");
     }
-    destInput->clear();
-    amountInput->clear();
+}
+
+QString TransactionManager::getUserAccountId(const QString &username) {
+    QSqlQuery query;
+    query.prepare("SELECT id FROM accounts WHERE username = :username");
+    query.bindValue(":username", username);
     
-    // Update account list
-    emit transactionCompleted();
+    if (query.exec() && query.next()) {
+        return query.value("id").toString();
+    }
+    return "";
 }
 
 void TransactionManager::clearData() {
@@ -197,44 +243,4 @@ void TransactionManager::clearData() {
     destInput->clear();
     amountInput->clear();
     statusLabel->clear();
-    transactionHistoryTextEdit->clear();
-}
-
-void TransactionManager::updateAccountList() {
-    // This function should update the account list in the UI
-    // You might want to emit a signal to notify AccountManager to update its list
-    emit transactionCompleted();
-}
-
-void TransactionManager::showTransactionHistory() {
-    QString accountId = sourceInput->text();
-    if (accountId.isEmpty()) {
-        QMessageBox::warning(this, "Error", "Please enter a source account ID to view transaction history.");
-        return;
-    }
-    updateTransactionHistory(accountId);
-}
-
-void TransactionManager::updateTransactionHistory(const QString &accountId) {
-    QSqlQuery query;
-    query.prepare("SELECT * FROM transactions WHERE account_id = :account_id ORDER BY date DESC LIMIT 10");
-    query.bindValue(":account_id", accountId);
-
-    if (query.exec()) {
-        QString history = QString("Transaction History for Account %1:\n\n").arg(accountId);
-        while (query.next()) {
-            QString date = query.value("date").toString();
-            double amount = query.value("amount").toDouble();
-            QString type = query.value("type").toString();
-
-            history += QString("%1 | %2 | $%3\n")
-                           .arg(date)
-                           .arg(type)
-                           .arg(qAbs(amount), 0, 'f', 2);
-        }
-        transactionHistoryTextEdit->setText(history);
-    } else {
-        qDebug() << "Error fetching transaction history:" << query.lastError().text();
-        transactionHistoryTextEdit->setText("Error fetching transaction history.");
-    }
 }

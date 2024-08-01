@@ -4,15 +4,15 @@
 #include <QWidget>
 #include <QList>
 #include <QString>
-#include <QTextEdit>
-#include <QPushButton>
-#include <QLabel>
-#include <QListWidget>
-#include <QTableWidget>
 #include "Bank.h"
 #include "Account.h"
 
+class QTableWidget;
+class QTextEdit;
+class QPushButton;
 class QDialog;
+class QLabel;
+class QListWidget;
 
 class AccountManager : public QWidget {
     Q_OBJECT
@@ -35,18 +35,19 @@ private slots:
     void logout();
     void showCreateAccountForm();
     void showAccountDetails(int row, int column);
+public slots:
+    QPushButton* getUserButton() { return userButton; }
 
 private:
     Bank *bank;
     QList<Account*> allAccounts;
     QTableWidget *accountTable;
-    QTextEdit *accountDetailsTextEdit;
     QPushButton *userButton;
     QString currentUser;
     bool isAdminUser;
 
     // Widgets for user mode
-    QWidget *accountDetailsWidget;
+    QWidget *userViewWidget;
     QLabel *accountNameLabel;
     QLabel *accountIdLabel;
     QLabel *accountBalanceLabel;

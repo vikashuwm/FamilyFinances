@@ -1,38 +1,41 @@
-#pragma once
+#ifndef FAMILYFINANCES_H
+#define FAMILYFINANCES_H
 
 #include <QMainWindow>
-#include <QCloseEvent>
 #include "Bank.h"
+#include "LoginPage.h"
 #include "AccountManager.h"
 #include "TransactionManager.h"
-#include "LoginPage.h"
+
+class QFrame;
 
 class FamilyFinances : public QMainWindow {
     Q_OBJECT
 
 public:
-    FamilyFinances(QWidget *parent = nullptr);
+    explicit FamilyFinances(QWidget *parent = nullptr);
     ~FamilyFinances();
 
 protected:
     void closeEvent(QCloseEvent *event) override;
-    bool initializeDatabase();
 
 private slots:
     void onLoginSuccessful(const QString &username, bool isAdmin);
     void onLogoutRequested();
 
 private:
-    void setupDatabase();
-    void setupUI();
-    void setUserAccess(const QString &username, bool isAdmin);
-
     Bank *bank;
-    AccountManager *accountManager;
-    TransactionManager *transactionManager;
     LoginPage *loginPage;
     QWidget *bankWidget;
-
+    AccountManager *accountManager;
+    TransactionManager *transactionManager;
     QString currentUser;
     bool isAdminUser;
+
+    bool initializeDatabase();
+    void setupUI();
+    void setUserAccess(const QString &username, bool isAdmin);
+    QFrame* createStyledFrame();
 };
+
+#endif // FAMILYFINANCES_H
