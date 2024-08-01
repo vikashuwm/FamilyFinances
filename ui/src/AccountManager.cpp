@@ -134,7 +134,7 @@ void AccountManager::showUserMenu() {
                         "}");
 
     if (isAdminUser) {
-        QAction *addAccountAction = new QAction("Add Account", this);
+        QAction *addAccountAction = new QAction("Add/Update Account", this); // same username then update will be performed.
         connect(addAccountAction, &QAction::triggered, this, &AccountManager::showCreateAccountForm);
         menu->addAction(addAccountAction);
     }
@@ -308,17 +308,12 @@ void AccountManager::showCreateAccountForm() {
 }
 QDialog* AccountManager::setupAccountCreationDialog() {
     QDialog* dialog = new QDialog(this);
-    dialog->setWindowTitle("Create Account");
+    dialog->setWindowTitle("Create/Update Account");
     dialog->setFixedSize(400, 450);
 
     QVBoxLayout* layout = new QVBoxLayout(dialog);
     layout->setSpacing(15);
     layout->setContentsMargins(20, 20, 20, 20);
-
-    QLabel* titleLabel = new QLabel("Create New Account", dialog);
-    titleLabel->setAlignment(Qt::AlignCenter);
-    titleLabel->setStyleSheet("font-size: 18px; font-weight: bold;");
-    layout->addWidget(titleLabel);
 
     QStringList placeholders = {"First Name", "Last Name", "Username", "Email Address", "Initial Balance"};
     QList<QLineEdit*> inputs;
