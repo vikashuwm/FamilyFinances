@@ -29,7 +29,8 @@ After building, you can run the application:
 ./FamilyFinances
 
 UI ScreenShorts...
-https://github.com/vikashuwm/FamilyFinances/blob/main/login.png
-https://github.com/vikashuwm/FamilyFinances/blob/main/AdminLoginPage.png
-https://github.com/vikashuwm/FamilyFinances/blob/main/Create_update_account.png
-https://github.com/vikashuwm/FamilyFinances/blob/main/userLogin.png
+login.png
+AdminLoginPage.png
+Create_update_account.png
+userLogin.png
+
